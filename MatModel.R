@@ -64,3 +64,61 @@ for(i in 1:n)
 spearmanama(iris$Sepal.Length,iris$Petal.Length)
 #2Используя данные по ссылке, постройте оптимальную линейную модель множественной регрессии для co2_flux используя только данные летних месяцев. В данных вместо значения NA используется значения -9999, исправьте это действием подобным data[data == -9999] = NA. 
 #Для выбора нужных суток используйте переменную DOY - день года (1 января - DOY = 1)
+library("tidyverse")
+library("nycflights13")
+library("tidyr")
+library("stringr")
+library("dplyr")
+library("tibble")
+library("readr")
+#загрузка файла
+data = read_csv("https://www.dropbox.com/s/erhs9hoj4vhrz0b/eddypro.csv?dl=1",
+                skip = 1, na =c("","NA","-9999","-9999.0"), comment=c("["))
+#удаление не нужной строки
+data = data[-1,]
+data
+#информация по колонкам
+glimpse(data)
+#удаление roll
+data = select(data, -(roll))
+#преобразование в факторы
+data = data %>% mutate_if(is.character, factor)
+#исправление знаков в переменных
+names(data) =  str_replace_all(names(data), "[!]","_emph_")
+names(data) = names(data) %>% 
+  str_replace_all("[!]","_emph_") %>% 
+  str_replace_all("[?]","_quest_") %>% 
+  str_replace_all("[*]","_star_") %>% 
+  str_replace_all("[+]","_plus_") %>%
+  str_replace_all("[-]","_minus_") %>%
+  str_replace_all("[@]","_at_") %>%
+  str_replace_all("[$]","_dollar_") %>%
+  str_replace_all("[#]","_hash_") %>%
+  str_replace_all("[/]","_div_") %>%
+  str_replace_all("[%]","_perc_") %>%
+  str_replace_all("[&]","_amp_") %>%
+  str_replace_all("[\\^]","_power_") %>%
+  str_replace_all("[()]","_") 
+glimpse(data)
+#сохранка численных данных
+data_numeric = data[,sapply(data,is.numeric) ]
+#летние месяцы
+ar = arrange(data, DOY)
+summer.data = filter(ar, DOY %in% ar$DOY[(ar$DOY>150) & (ar$DOY<240)])
+#корреляционный анализ
+cor_td = cor(data_numeric)
+cor_td
+#удаление лишних строк со значением NA
+cor_td = cor(drop_na(data_numeric))
+cor_td = cor(drop_na(data_numeric)) %>% as.data.frame %>% select(co2_flux)
+vars = row.names(cor_td)[cor_td$co2_flux^2 > .2] %>% na.exclude
+vars
+#объединение всех переменных из вектора с именнами переменных в одну формулу
+formula = as.formula(paste("co2_flux~", paste(vars,collapse = "+"), sep=""))
+formula
+#линейная модель
+my.model = lm(co2_flux ~ LE + rand_err_LE  + h2o_flux + rand_err_h2o_flux + 
+                un_LE + un_co2_flux + un_h2o_flux + h2o_var + w_div_co2_cov, 
+              data = summer.data)
+summary(my.model)
+
